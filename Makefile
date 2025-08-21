@@ -9,8 +9,8 @@ iio_fm_radio: iio_fm_radio.c iio_utils.c
 
 install:
 	install -d $(DESTDIR)$(PREFIX)/bin
-	install ./iio_fm_radio $(DESTDIR)$(PREFIX)bin/iio_fm_radio
-	install ./iio_fm_radio_play $(DESTDIR)$(PREFIX)bin/iio_fm_radio_play
+	install ./iio_fm_radio $(DESTDIR)$(PREFIX)/bin/iio_fm_radio
+	install ./iio_fm_radio_play $(DESTDIR)$(PREFIX)/bin/iio_fm_radio_play
 	
 clean: 
 	rm -f iio_fm_radio
