@@ -1,0 +1,139 @@
+name: Build and Deploy Simple IIO FM Radio 
+
+env:
+  MAJOR: 0 
+  MINOR: 1
+  SIMPLE_PATCH: 0
+  PATCH: 0+${{ github.sha }}
+  SOURCE_CODE: iio-fm-radio
+  CONTAINER_BASE_NAME: kuiper-container-basic
+
+on:
+  workflow_dispatch:
+  push:
+    branches: 
+      - main
+      - '20[1-9][0-9]_R[1-9]'
+  pull_request:
+    branches:
+      - main
+      - '20[1-9][0-9]_R[1-9]' 
+
+jobs:  
+  build_and_deploy_for_kuiper:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - docker_image: aandrisa/kuiper_basic_64:latest
+            image_arch: linux/arm64
+            architecture: arm64
+          - docker_image: aandrisa/kuiper_basic_32:latest
+            image_arch: linux/arm/v7
+            architecture: armhf
+    steps:
+    - name: Checkout code repository
+      uses: actions/checkout@v4
+      with: 
+        path: ${{env.SOURCE_CODE}}
+        
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
+    - name: Start persistent container
+      run: |
+        docker run -d \
+            --platform ${{matrix.image_arch}} \
+            --name ${{env.CONTAINER_BASE_NAME}}-${{matrix.architecture}} \
+            -v "$GITHUB_WORKSPACE/${{env.SOURCE_CODE}}:/workspace/${{env.SOURCE_CODE}}" \
+            -w /workspace/${{env.SOURCE_CODE}} \
+            ${{matrix.docker_image}} tail -f /dev/null
+
+    - name: Install dependencies
+      run: |
+        docker exec ${{env.CONTAINER_BASE_NAME}}-${{matrix.architecture}} sudo apt update
+        docker exec ${{env.CONTAINER_BASE_NAME}}-${{matrix.architecture}} sudo apt install -y build-essential make devscripts debhelper
+
+    - name: Create the tar.gz 
+      run: |
+        docker exec ${{env.CONTAINER_BASE_NAME}}-${{matrix.architecture}} sh -c "cd .. && tar czf ${{env.SOURCE_CODE}}_${{env.MAJOR}}.${{env.MINOR}}.${{env.PATCH}}.orig.tar.gz ${{env.SOURCE_CODE}}"
+
+    - name: Update debian template files
+      run: |
+        docker exec ${{env.CONTAINER_BASE_NAME}}-${{matrix.architecture}} sh -c "sed -i 's/@VERSION@/${{env.MAJOR}}.${{env.MINOR}}.${{env.PATCH}}-1/' packaging/debian/changelog"
+        docker exec ${{env.CONTAINER_BASE_NAME}}-${{matrix.architecture}} sh -c "sed -i 's/@DATE@/'\"$(date -R)\"'/' packaging/debian/changelog" 
+        docker exec ${{env.CONTAINER_BASE_NAME}}-${{matrix.architecture}} sh -c "sed -i 's/@ARCHITECTURE@/${{matrix.architecture}}/' packaging/debian/control"
+
+    - name: Prepare debian packaging folder
+      run: |
+        docker exec ${{env.CONTAINER_BASE_NAME}}-${{matrix.architecture}} sh -c "mv packaging/debian ."
+        docker exec ${{env.CONTAINER_BASE_NAME}}-${{matrix.architecture}} sh -c "chmod +x debian/rules"
+
+    - name: Create .deb package artifact
+      run: |
+        docker exec ${{env.CONTAINER_BASE_NAME}}-${{matrix.architecture}} sh -c "debuild"
+
+    - name: Install application
+      env:
+        DEB_FILE_NAME: iio-fm-radio_${{env.MAJOR}}.${{env.MINOR}}.${{env.PATCH}}-1_${{matrix.architecture}}
+      run: |
+        docker exec ${{env.CONTAINER_BASE_NAME}}-${{matrix.architecture}} sh -c "sudo dpkg -i ../${{env.DEB_FILE_NAME}}.deb"
+        
+    - name: Verify install locations 
+      env: 
+        BIN_LOCATION: /usr/bin
+      run: |
+        docker exec ${{env.CONTAINER_BASE_NAME}}-${{matrix.architecture}} sh -c "[ -e '${{env.BIN_LOCATION}}/iio_fm_radio' ] \
+        && [ -e '${{env.BIN_LOCATION}}/iio_fm_radio_play' ] \
+        && echo 'Installation successful' \
+        || { echo 'Installation failed, some files are missing'; exit 1; }"
+        
+    - name: Copy .deb from container to host
+      env:
+        DEB_FILE_NAME: iio-fm-radio_${{env.MAJOR}}.${{env.MINOR}}.${{env.PATCH}}-1_${{matrix.architecture}}
+      run: |
+          docker cp ${{env.CONTAINER_BASE_NAME}}-${{matrix.architecture}}:/workspace/${{env.DEB_FILE_NAME}}.deb ./${{env.DEB_FILE_NAME}}.deb
+
+    - name: Upload .deb artifacts to github
+      uses: actions/upload-artifact@v4
+      with:
+        name: iio-fm-radio-${{matrix.architecture}}
+        path: iio-fm-radio_${{env.MAJOR}}.${{env.MINOR}}.${{env.PATCH}}-1_${{matrix.architecture}}.deb
+        if-no-files-found: error
+  build_and_deploy_for_ubuntu:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: ${{env.SOURCE_CODE}}
+    steps:
+    - name: Checkout code repository
+      uses: actions/checkout@v4
+      with: 
+        path: ${{env.SOURCE_CODE}}
+        
+    - name: Install dependencies 
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential make devscripts debhelper
+        
+    - name: Preparation for debian packaging
+      run: | 
+        pushd .. && tar czf ${{env.SOURCE_CODE}}_${{env.MAJOR}}.${{env.MINOR}}.${{env.PATCH}}.orig.tar.gz ${{env.SOURCE_CODE}}
+        popd
+        sed -i 's/@VERSION@/${{env.MAJOR}}.${{env.MINOR}}.${{env.PATCH}}-1/' packaging/debian/changelog
+        sed -i 's/@DATE@/"$(date -R)"/' packaging/debian/changelog
+        sed -i 's/@ARCHITECTURE@/all/' packaging/debian/control
+        mv packaging/debian .
+        chmod +x debian/rules
+
+    - name: Create .deb package artifact
+      run: |
+        debuild
+        
+    - name: Upload .deb artifacts to github
+      uses: actions/upload-artifact@v4
+      with:
+        name: iio-fm-radio-ubuntu-24
+        path: iio-fm-radio_${{env.MAJOR}}.${{env.MINOR}}.${{env.PATCH}}-1_all.deb
+        if-no-files-found: error
