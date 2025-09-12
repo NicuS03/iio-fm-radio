@@ -59,7 +59,7 @@ jobs:
             fi
         else 
             if [[ $latest_released_tag =~ $regex  ]]; then
-                app_version=latest_released_tag+${{ github.sha }}
+                app_version=$latest_released_tag+${{ github.sha }}
             else
                 echo "Invalid relesed version. Setting default version"
                 app_version=0.0.1+${{ github.sha }}
