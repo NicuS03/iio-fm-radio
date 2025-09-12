@@ -3,7 +3,6 @@ name: Build and Deploy Simple IIO FM Radio
 env:
   APP_NAME: iio-fm-radio
   
-
 on:
   workflow_dispatch:
   push:
@@ -38,7 +37,7 @@ jobs:
 
         if [[ "${{github.ref_type}}" == "tag" ]]; then
             pushed_tag=${{github.ref_name}}
-            if [[ $pushed_tag =~ regex  ]]; then
+            if [[ $pushed_tag =~ $regex  ]]; then
                 app_version=${BASH_REMATCH[2]}
                 if [[ $latest_released_tag =~ regex  ]]; then
                     IFS='.' read -r major minor patch <<< "$latest_released_tag"
@@ -168,7 +167,7 @@ jobs:
       - build_and_deploy_for_ubuntu
       - identify_version
     runs-on: ubuntu-latest
-    if: ${{ needs.identify_version.outputs.can-create-release}} == true
+    if: needs.identify_version.outputs.can-create-release == "true"
     steps:
     - name: Download all artifacts
       uses: actions/download-artifact@v4
