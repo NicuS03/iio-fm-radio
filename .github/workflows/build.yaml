@@ -62,7 +62,7 @@ jobs:
             if [[ $latest_released_tag =~ regex  ]]; then
                 app_version=latest_released_tag+${{ github.sha }}
             else
-                app_version=0.0.1+${{ github.sha }
+                app_version=0.0.1+${{ github.sha }}
             fi
         fi
         
