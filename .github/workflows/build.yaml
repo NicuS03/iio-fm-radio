@@ -40,7 +40,7 @@ jobs:
             if [[ $pushed_tag =~ $regex  ]]; then
                 app_version=${BASH_REMATCH[2]}
                 if [[ $latest_released_tag =~ $regex  ]]; then
-                    IFS='.' read -r major minor patch <<< "$latest_released_tag"
+                    IFS='.' read -r major minor patch <<< "${BASH_REMATCH[2]}"
                     next_patch="$major.$minor.$((patch + 1))"
                     next_minor="$major.$((minor + 1)).0"
                     next_major="$((major + 1)).0.0"
