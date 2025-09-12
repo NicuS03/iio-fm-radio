@@ -38,38 +38,37 @@ jobs:
 
         if [[ "${{github.ref_type}}" == "tag" ]]; then
             pushed_tag=${{github.ref_name}}
-			if [[ $pushed_tag =~ regex  ]]; then
-				app_version=${BASH_REMATCH[2]}
-			    if [[ $latest_released_tag =~ regex  ]]; then
-					IFS='.' read -r major minor patch <<< "$latest_released_tag"
-					next_patch="$major.$minor.$((patch + 1))"
-					next_minor="$major.$((minor + 1)).0"
-					next_major="$((major + 1)).0.0"
-					if [[ "$app_version" == "$next_patch" || "$app_version" == "$next_minor" || "$app_version" == "$next_major" ]]; then
-						create_release=true
-					else
-						echo "Valid tag, but invalid version incrementation, release will NOT be created"
-					fi
-				else
-					echo "Invalid relesed version, skip incrementation validation! Release will be created"
-					create_release=true
-				fi
-			else
-				echo "Invalid tag format, release will NOT be created"
-				app_version=0.0.1+${{ github.sha }}
-			fi
-		else 
-			if [[ $latest_released_tag =~ regex  ]]; then
-				app_version=latest_released_tag+${{ github.sha }}
-			else
-				app_version=0.0.1+${{ github.sha }
-			fi
+            if [[ $pushed_tag =~ regex  ]]; then
+                app_version=${BASH_REMATCH[2]}
+                if [[ $latest_released_tag =~ regex  ]]; then
+                    IFS='.' read -r major minor patch <<< "$latest_released_tag"
+                    next_patch="$major.$minor.$((patch + 1))"
+                    next_minor="$major.$((minor + 1)).0"
+                    next_major="$((major + 1)).0.0"
+                    if [[ "$app_version" == "$next_patch" || "$app_version" == "$next_minor" || "$app_version" == "$next_major" ]]; then
+                        create_release=true
+                    else
+                        echo "Valid tag, but invalid version incrementation, release will NOT be created"
+                    fi
+                else
+                    echo "Invalid relesed version, skip incrementation validation! Release will be created"
+                    create_release=true
+                fi
+            else
+                echo "Invalid tag format, release will NOT be created"
+                app_version=0.0.1+${{ github.sha }}
+            fi
+        else 
+            if [[ $latest_released_tag =~ regex  ]]; then
+                app_version=latest_released_tag+${{ github.sha }}
+            else
+                app_version=0.0.1+${{ github.sha }
+            fi
         fi
-		
-		echo "Version to use $app_version"
-		echo "version=$app_version" >> "$GITHUB_OUTPUT"
-		echo "can_create_release=$create_release" >> "$GITHUB_OUTPUT"
         
+        echo "Version to use $app_version"
+        echo "version=$app_version" >> "$GITHUB_OUTPUT"
+        echo "can_create_release=$create_release" >> "$GITHUB_OUTPUT"
   build_and_deploy_for_kuiper:
     runs-on: ubuntu-latest
     needs: identify_version
