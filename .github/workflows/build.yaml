@@ -39,7 +39,7 @@ jobs:
             pushed_tag=${{github.ref_name}}
             if [[ $pushed_tag =~ $regex  ]]; then
                 app_version=${BASH_REMATCH[2]}
-                if [[ $latest_released_tag =~ regex  ]]; then
+                if [[ $latest_released_tag =~ $regex  ]]; then
                     IFS='.' read -r major minor patch <<< "$latest_released_tag"
                     next_patch="$major.$minor.$((patch + 1))"
                     next_minor="$major.$((minor + 1)).0"
