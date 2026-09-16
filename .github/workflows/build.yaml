@@ -69,7 +69,7 @@ jobs:
                 app_version=0.0.1+${{ github.sha }}
             fi
         fi
-        
+        app_version=0.3.0
         echo "Version to use $app_version"
         echo "version=$app_version" >> "$GITHUB_OUTPUT"
         echo "can_create_release=$create_release" >> "$GITHUB_OUTPUT"
